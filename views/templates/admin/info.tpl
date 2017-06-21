@@ -1,5 +1,4 @@
-<?php
-/**
+{*
  * 2007-2016 PrestaShop
  *
  * thirty bees is an extension to the PrestaShop e-commerce software developed by PrestaShop SA
@@ -21,14 +20,11 @@
  * @copyright 2007-2016 PrestaShop SA
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  * PrestaShop is an internationally registered trademark & property of PrestaShop SA
- */
-
-header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
-header("Last-Modified: ".gmdate("D, d M Y H:i:s")." GMT");
-
-header("Cache-Control: no-store, no-cache, must-revalidate");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
-
-header("Location: ../");
-exit;
+*}
+<div class="alert alert-info">
+    {l s='Please be aware the Google Analytics API module will only work if you either:' mod='gapi'}
+    <ul>
+        <li>{l s='have installed and configured the "Google Analytics" module' mod='gapi'}</li>
+        <li>{l s='or have already embedded the Google Analytics script into your shop.' mod='gapi'}</li>
+    </ul>
+</div>

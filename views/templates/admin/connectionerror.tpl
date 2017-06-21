@@ -1,5 +1,4 @@
-<?php
-/**
+{*
  * 2007-2016 PrestaShop
  *
  * thirty bees is an extension to the PrestaShop e-commerce software developed by PrestaShop SA
@@ -21,14 +20,11 @@
  * @copyright 2007-2016 PrestaShop SA
  * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  * PrestaShop is an internationally registered trademark & property of PrestaShop SA
- */
-
-header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
-header("Last-Modified: ".gmdate("D, d M Y H:i:s")." GMT");
-
-header("Cache-Control: no-store, no-cache, must-revalidate");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
-
-header("Location: ../");
-exit;
+*}
+<ul>
+    {if !($curl || $allowUrlFopen)}<li>{l s='You are not allowed to open external URLs' mod='gapi'}</li>{/if}
+    {if !$curl}<li>{l s='cURL is not enabled' mod='gapi'}</li>{/if}
+    {if !$openssl}<li>{l s='OpenSSL is not enabled' mod='gapi'}</li>{/if}
+    {if ($allowUrlFopen || $curl) && $openssl && !$ping}<li>{l s='Google is unreachable (check your firewall)' mod='gapi'}</li>{/if}
+    {if !$online}<li>{l s='You are currently testing your shop on a local server. In order to enjoy the full features, you need to put your shop on an online server.' mod='gapi'}</li>{/if}
+</ul>
