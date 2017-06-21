@@ -9,8 +9,8 @@
             {/foreach}
         </ol>
         <div class="carousel-inner">
-            {foreach from=$slides key=slide item=caption}
-                <div class="item '.($slide == $firstSlide ? 'active' : '').'">
+            {foreach from=$slides key=slide item=caption name=slidesCarousel}
+                <div class="item{if $smarty.foreach.slidesCarousel.iteration === 1} active{/if}">
                     <img src="{$modulePath|escape:'htmlall':'UTF-8'}screenshots/3.0/{$slide|escape:'htmlall':'UTF-8'}" style="margin:auto">
                     <div style="text-align:center;font-size:1.4em;margin-top:10px;font-weight:700">
                         {$caption}
