@@ -103,10 +103,12 @@ class Gapi extends Module
         $allowUrlFopen = ini_get('allow_url_fopen');
         $openssl = extension_loaded('openssl');
         $curl = extension_loaded('curl');
-        $guzzle = new Client([
-            'timeout' => static::CONNECTION_TIMEOUT,
-            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
-        ]);
+        $guzzle = new Client(
+            [
+                'timeout' => static::CONNECTION_TIMEOUT,
+                'verify'  => _PS_TOOL_DIR_.'cacert.pem',
+            ]
+        );
         try {
             $devSite = (string) $guzzle->get('https://developers.google.com/')->getBody();
         } catch (Exception $e) {
@@ -116,13 +118,15 @@ class Gapi extends Module
         $ping = (($allowUrlFopen || $curl) && $openssl && (bool) $devSite);
         $online = (in_array(Tools::getRemoteAddr(), ['127.0.0.1', '::1']) ? false : true);
 
-        $this->context->smarty->assign([
-            'allowUrlFopen' => $allowUrlFopen,
-            'curl'          => $curl,
-            'openssl'       => $openssl,
-            'ping'          => $ping,
-            'online'        => $online,
-        ]);
+        $this->context->smarty->assign(
+            [
+                'allowUrlFopen' => $allowUrlFopen,
+                'curl'          => $curl,
+                'openssl'       => $openssl,
+                'ping'          => $ping,
+                'online'        => $online,
+            ]
+        );
 
         if (!$ping || !$online) {
             $html .= $this->displayError($this->display(__FILE__, 'views/templates/admin/connectionerror.tpl'));
@@ -135,7 +139,6 @@ class Gapi extends Module
         }
 
         $html .= $this->apiGetContent();
-
 
         return $html;
     }
@@ -167,12 +170,12 @@ class Gapi extends Module
 
         $displaySlider = true;
         if ($this->isApiConfigured()) {
-            $resultTest = $this->apiRequestReportData('', 'ga:visits,ga:uniquePageviews', date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('-1 day')), null, null, 1, 1);
+            $resultTest = $this->apiRequestReportData('', 'ga:visits,ga:uniquePageviews', '30daysAgo', 'yesterday', null, null, 1, 1);
             if (!$resultTest) {
-                $html .= $this->displayError('Cannot retrieve test results');
+                $html .= $this->displayError('Cannot retrieve test results or there is no data in your account, yet');
             } else {
                 $displaySlider = false;
-                $html .= $this->displayConfirmation(sprintf($this->l('Yesterday, your store received the visit of %d people for a total of %d unique page views.'), $resultTest[0]['metrics']['visits'], $resultTest[0]['metrics']['uniquePageviews']));
+                $html .= $this->displayConfirmation(sprintf($this->l('Yesterday, %d people visited your store for a total of %d unique page views.'), $resultTest[0]['metrics']['visits'], $resultTest[0]['metrics']['uniquePageviews']));
             }
         }
 
@@ -192,10 +195,12 @@ class Gapi extends Module
                 'Google API - 08 - Profile ID.png'         => $this->l('Now you need the ID of the Analytics Profile you want to connect. In order to find your Profile ID, connect to the Analytics dashboard, then look at the URL in the address bar. Your Profile ID is the number following a "p", as shown underlined in red on the screenshot'),
             ];
 
-            $this->context->smarty->assign([
-                'slides'     => $slides,
-                'modulePath' => $this->_path,
-            ]);
+            $this->context->smarty->assign(
+                [
+                    'slides'     => $slides,
+                    'modulePath' => $this->_path,
+                ]
+            );
 
             $html .= $this->display(__FILE__, 'views/templates/admin/slider.tpl');
         }
@@ -274,15 +279,19 @@ class Gapi extends Module
             $params['redirect_uri'] = $shop->getBaseURL(true).'modules/'.$this->name.'/oauth2callback.php';
         }
 
-        $guzzle = new Client([
-            'timeout' => static::CONNECTION_TIMEOUT,
-            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
-        ]);
+        $guzzle = new Client(
+            [
+                'timeout' => static::CONNECTION_TIMEOUT,
+                'verify'  => _PS_TOOL_DIR_.'cacert.pem',
+            ]
+        );
 
         try {
-            $responseJson = (string) $guzzle->post('https://accounts.google.com/o/oauth2/token', [
+            $responseJson = (string) $guzzle->post(
+                'https://accounts.google.com/o/oauth2/token', [
                 'form_params' => $params,
-            ])->getBody();
+            ]
+            )->getBody();
         } catch (Exception $e) {
             $responseJson = false;
         }
@@ -303,6 +312,82 @@ class Gapi extends Module
         }
 
         return true;
+    }
+
+    /**
+     * @param mixed $dimensions
+     * @param mixed $metrics
+     * @param mixed $dateFrom
+     * @param mixed $dateTo
+     * @param mixed $sort
+     * @param mixed $filters
+     * @param mixed $start
+     * @param mixed $limit
+     *
+     * @return array|bool
+     */
+    protected function apiRequestReportData($dimensions, $metrics, $dateFrom, $dateTo, $sort, $filters, $start, $limit)
+    {
+        if (Configuration::get(static::GAPI30_TOKEN_EXPIRATION) < time() + 30 && !$this->apiRefreshToken()) {
+            return false;
+        }
+        $bearer = Configuration::get(static::GAPI30_ACCESS_TOKEN);
+
+        $params = [
+            'access_token' => $bearer,
+            'ids'          => 'ga:'.Configuration::get(static::GAPI_PROFILE),
+            'dimensions'   => $dimensions,
+            'metrics'      => $metrics,
+            'sort'         => $sort ? $sort : $metrics,
+            'start-date'   => $dateFrom,
+            'end-date'     => $dateTo,
+            'start-index'  => $start,
+            'max-results'  => $limit,
+        ];
+        if ($filters !== null) {
+            $params['filters'] = $filters;
+        }
+        $content = str_replace('&amp;', '&', urldecode(http_build_query($params)));
+
+        $api = ($dateFrom && $dateTo) ? 'ga' : 'realtime';
+
+        $guzzle = new Client(
+            [
+                'timeout' => static::CONNECTION_TIMEOUT,
+                'verify'  => _PS_TOOL_DIR_.'cacert.pem',
+            ]
+        );
+
+        try {
+            $responseJson = (string) $guzzle->get("https://www.googleapis.com/analytics/v3/data/$api?$content")->getBody();
+        } catch (Exception $e) {
+            $responseJson = false;
+        }
+
+        if (!$responseJson) {
+            return false;
+        }
+
+        // https://developers.google.com/analytics/devguides/reporting/core/v3/reference
+        $response = json_decode($responseJson, true);
+
+        $result = [];
+        if (isset($response['rows']) && is_array($response['rows'])) {
+            foreach ($response['rows'] as $row) {
+                $metrics = [];
+                $dimensions = [];
+                foreach ($row as $key => $value) {
+                    if ($response['columnHeaders'][$key]['columnType'] == 'DIMENSION') {
+                        $dimensions[str_replace('ga:', '', $response['columnHeaders'][$key]['name'])] = $value;
+                    } elseif ($response['columnHeaders'][$key]['columnType'] == 'METRIC') {
+                        $metrics[str_replace('ga:', '', $response['columnHeaders'][$key]['name'])] = $value;
+                    }
+                }
+                $result[] = ['metrics' => $metrics, 'dimensions' => $dimensions];
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -357,83 +442,5 @@ class Gapi extends Module
         Configuration::deleteFromContext('PS_GAPI30_REFRESH_TOKEN');
 
         Tools::redirectAdmin($url.'&oauth2callback='.$oauth2callback);
-    }
-
-    /**
-     * @param mixed $dimensions
-     * @param mixed $metrics
-     * @param mixed $dateFrom
-     * @param mixed $dateTo
-     * @param mixed $sort
-     * @param mixed $filters
-     * @param mixed $start
-     * @param mixed $limit
-     *
-     * @return array|bool
-     */
-    protected function apiRequestReportData($dimensions, $metrics, $dateFrom, $dateTo, $sort, $filters, $start, $limit)
-    {
-        if (Configuration::get(static::GAPI30_TOKEN_EXPIRATION) < time() + 30 && !$this->apiRefreshToken()) {
-            return false;
-        }
-        $bearer = Configuration::get(static::GAPI30_ACCESS_TOKEN);
-
-        $params = [
-            'ids'          => 'ga:'.Configuration::get(static::GAPI_PROFILE),
-            'dimensions'   => $dimensions,
-            'metrics'      => $metrics,
-            'sort'         => $sort ? $sort : $metrics,
-            'start-date'   => $dateFrom,
-            'end-date'     => $dateTo,
-            'start-index'  => $start,
-            'max-results'  => $limit,
-            'access_token' => $bearer,
-        ];
-        if ($filters !== null) {
-            $params['filters'] = $filters;
-        }
-        $content = str_replace('&amp;', '&', urldecode(http_build_query($params)));
-
-        $api = ($dateFrom && $dateTo) ? 'ga' : 'realtime';
-
-        $guzzle = new Client(
-            [
-                'timeout' => static::CONNECTION_TIMEOUT,
-                'verify'  => _PS_TOOL_DIR_.'cacert.pem',
-            ]
-        );
-
-        try {
-            $responseJson = (string) $guzzle->post("https://www.googleapis.com/analytics/v3/data/$api?$content", [
-                'form_params' => $params,
-            ])->getBody();
-        } catch (Exception $e) {
-            $responseJson = false;
-        }
-
-        if (!$responseJson) {
-            return false;
-        }
-
-        // https://developers.google.com/analytics/devguides/reporting/core/v3/reference
-        $response = json_decode($responseJson, true);
-
-        $result = [];
-        if (isset($response['rows']) && is_array($response['rows'])) {
-            foreach ($response['rows'] as $row) {
-                $metrics = [];
-                $dimensions = [];
-                foreach ($row as $key => $value) {
-                    if ($response['columnHeaders'][$key]['columnType'] == 'DIMENSION') {
-                        $dimensions[str_replace('ga:', '', $response['columnHeaders'][$key]['name'])] = $value;
-                    } elseif ($response['columnHeaders'][$key]['columnType'] == 'METRIC') {
-                        $metrics[str_replace('ga:', '', $response['columnHeaders'][$key]['name'])] = $value;
-                    }
-                }
-                $result[] = ['metrics' => $metrics, 'dimensions' => $dimensions];
-            }
-        }
-
-        return $result;
     }
 }
