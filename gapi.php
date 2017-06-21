@@ -36,6 +36,19 @@ class Gapi extends Module
 {
     const CONNECTION_TIMEOUT = 30;
 
+    const GAPI30_REQUEST_URI_TMP = 'PS_GAPI30_REQUEST_URI_TMP';
+    const GAPI30_CLIENT_ID_TMP = 'PS_GAPI30_CLIENT_ID_TMP';
+    const GAPI30_CLIENT_SECRET_TMP = 'PS_GAPI30_CLIENT_SECRET_TMP';
+    const GAPI30_CLIENT_ID = 'PS_GAPI30_CLIENT_ID';
+    const GAPI30_CLIENT_SECRET = 'PS_GAPI30_CLIENT_SECRET';
+    const GAPI_PROFILE = 'PS_GAPI_PROFILE';
+    const GAPI_PROFILE_TMP = 'PS_GAPI_PROFILE_TMP';
+    const GAPI_VERSION = 'PS_GAPI_VERSION';
+    const GAPI30_ACCESS_TOKEN = 'PS_GAPI30_ACCESS_TOKEN';
+    const GAPI30_TOKEN_EXPIRATION = 'PS_GAPI30_TOKEN_EXPIRATION';
+    const GAPI30_REFRESH_TOKEN = 'PS_GAPI30_REFRESH_TOKEN';
+    const GAPI30_AUTHORIZATION_CODE = 'PS_GAPI30_AUTHORIZATION_CODE';
+
     // @codingStandardsIgnoreStart
     /** @var string $auth_token */
     public $auth_token = '';
@@ -48,7 +61,7 @@ class Gapi extends Module
     {
         $this->name = 'gapi';
         $this->tab = 'administration';
-        $this->version = '2.0.0';
+        $this->version = '3.0.0';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -67,29 +80,16 @@ class Gapi extends Module
         if (!$this->active) {
             return false;
         }
-        if ((int) Configuration::get('PS_GAPI_VERSION') === 30) {
-            return $this->api_3_0_isConfigured();
-        } elseif ((int) Configuration::get('PS_GAPI_VERSION') === 13) {
-            return $this->api_1_3_isConfigured();
-        }
 
-        return false;
+        return $this->isApiConfigured();
     }
 
     /**
      * @return bool
      */
-    public function api_3_0_isConfigured()
+    public function isApiConfigured()
     {
         return (Configuration::get('PS_GAPI30_CLIENT_ID') && Configuration::get('PS_GAPI30_CLIENT_SECRET') && Configuration::get('PS_GAPI_PROFILE'));
-    }
-
-    /**
-     * @return bool
-     */
-    public function api_1_3_isConfigured()
-    {
-        return (Configuration::get('PS_GAPI13_EMAIL') && Configuration::get('PS_GAPI13_PASSWORD') && Configuration::get('PS_GAPI_PROFILE'));
     }
 
     /**
@@ -130,42 +130,12 @@ class Gapi extends Module
 
         $html .= $this->display(__FILE__, 'views/templates/admin/info.tpl');
 
-        if (Tools::getValue('PS_GAPI_VERSION')) {
-            Configuration::updateValue('PS_GAPI_VERSION', (int) Tools::getValue('PS_GAPI_VERSION'));
+        if (Tools::getValue(static::GAPI_VERSION)) {
+            Configuration::updateValue(static::GAPI_VERSION, (int) Tools::getValue(static::GAPI_VERSION));
         }
 
-        $helper = new HelperOptions($this);
-        $helper->id = $this->id;
-        $helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
-        $helper->token = Tools::getAdminTokenLite('AdminModules');
-        $helper->module = $this;
+        $html .= $this->apiGetContent();
 
-        $fieldsOptions = [
-            'general' => [
-                'title'  => $this->l('Which Google Analytics API version do you want to use?'),
-                'fields' => $fields = [
-                    'PS_GAPI_VERSION' => [
-                        'type'       => 'radio',
-                        'choices'    => [
-                            13 => $this->l('v1.3: easy to configure but deprecated and less secure'),
-                            30 => $this->l('v3.0 with OAuth 2.0: most powerful and up-to-date version'),
-                        ],
-                        'visibility' => Shop::CONTEXT_SHOP,
-                    ],
-                ],
-                'submit' => ['title' => $this->l('Save and configure')],
-            ],
-        ];
-
-        $helper->tpl_vars = ['currentIndex' => $helper->currentIndex];
-
-        $html .= $helper->generateOptions($fieldsOptions);
-
-        if (Configuration::get('PS_GAPI_VERSION') == 30) {
-            $html .= $this->api_3_0_getContent();
-        } elseif (Configuration::get('PS_GAPI_VERSION') == 13) {
-            $html .= $this->api_1_3_getContent();
-        }
 
         return $html;
     }
@@ -173,22 +143,22 @@ class Gapi extends Module
     /**
      * @return string
      */
-    public function api_3_0_getContent()
+    public function apiGetContent()
     {
         $html = '';
-        if (Tools::getValue('PS_GAPI30_CLIENT_ID')) {
-            Configuration::updateValue('PS_GAPI30_REQUEST_URI_TMP', dirname($_SERVER['REQUEST_URI']).'/'.AdminController::$currentIndex.'&configure='.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules'));
-            Configuration::updateValue('PS_GAPI30_CLIENT_ID_TMP', trim(Tools::getValue('PS_GAPI30_CLIENT_ID')));
-            Configuration::updateValue('PS_GAPI30_CLIENT_SECRET_TMP', trim(Tools::getValue('PS_GAPI30_CLIENT_SECRET')));
-            Configuration::updateValue('PS_GAPI_PROFILE_TMP', trim(Tools::getValue('PS_GAPI_PROFILE')));
+        if (Tools::getValue(static::GAPI30_CLIENT_ID)) {
+            Configuration::updateValue(static::GAPI30_REQUEST_URI_TMP, dirname($_SERVER['REQUEST_URI']).'/'.AdminController::$currentIndex.'&configure='.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules'));
+            Configuration::updateValue(static::GAPI30_CLIENT_ID_TMP, trim(Tools::getValue(static::GAPI30_CLIENT_ID)));
+            Configuration::updateValue(static::GAPI30_CLIENT_SECRET_TMP, trim(Tools::getValue(static::GAPI30_CLIENT_SECRET)));
+            Configuration::updateValue(static::GAPI_PROFILE_TMP, trim(Tools::getValue(static::GAPI_PROFILE)));
             // This will redirect the user to Google API authentication page
-            $this->api_3_0_authenticate();
+            $this->apiAuthenticate();
         } elseif (Tools::getValue('oauth2callback') == 'error') {
             $html .= $this->displayError('Google API: Access denied');
         } elseif (Tools::getValue('oauth2callback') == 'undefined') {
             $html .= $this->displayError('Something wrong happened with Google API authorization');
         } elseif (Tools::getValue('oauth2callback') == 'success') {
-            if ($this->api_3_0_refreshtoken()) {
+            if ($this->apiRefreshToken()) {
                 $html .= $this->displayConfirmation('Google API Authorization granted');
             } else {
                 $html .= $this->displayError('Google API Authorization granted but access token cannot be retrieved');
@@ -196,8 +166,8 @@ class Gapi extends Module
         }
 
         $displaySlider = true;
-        if ($this->api_3_0_isConfigured()) {
-            $resultTest = $this->api_3_0_requestReportData('', 'ga:visits,ga:uniquePageviews', date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('-1 day')), null, null, 1, 1);
+        if ($this->isApiConfigured()) {
+            $resultTest = $this->apiRequestReportData('', 'ga:visits,ga:uniquePageviews', date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('-1 day')), null, null, 1, 1);
             if (!$resultTest) {
                 $html .= $this->displayError('Cannot retrieve test results');
             } else {
@@ -211,59 +181,23 @@ class Gapi extends Module
             $authorizedOrigin = $shop->domain;
             $authorizedRedirect = $shop->domain.$shop->getBaseURI().'modules/'.$this->name.'/oauth2callback.php';
             $slides = [
-                'Google API - 01 - Start.png'              => $this->l('Go to https://code.google.com/apis/console and click the "Create Project" button'),
-                'Google API - 02 - Services.png'           => $this->l('In the "APIS & AUTH > APIs" tab, switch on the Analytics API'),
-                'Google API - 03 - Terms.png'              => $this->l('You may be asked to agree to the Terms of Service of Google APIs and Analytics API'),
-                'Google API - 04 - Services OK.png'        => $this->l('You should now have something like that'),
-                'Google API - 05 - API Access.png'         => $this->l('In the "APIS & AUTH > Credentials" tab, click the first, red, "Create new Client ID" button'),
+                'Google API - 01 - Start.png'              => $this->l('Go to').' <a href="https://console.developers.google.com/cloud-resource-manager" target="_blank">https://console.developers.google.com/cloud-resource-manager</a> '.$this->l('and click the "Create Project" button'),
+                'Google API - 02 - Services.png'           => $this->l('On the "API Manager > Library" tab, switch on the Analytics API'),
+                'Google API - 04 - Services OK.png'        => $this->l('You should now have something like this'),
+                'Google API - 05 - API Access.png'         => $this->l('On the "API Manager > Credentials" tab, click the "Create credentials" button. A dropdown will appear. Select "OAuth client ID"'),
                 'Google API - 06 - Create Client ID.png'   =>
                     sprintf($this->l('Keep "Web application" selected and fill in the "Authorized Javascript Origins" area with "%s" and "%s" then the "Authorized Redirect URI" area with "%s" and "%s".'), 'http://'.$authorizedOrigin, 'https://'.$authorizedOrigin, 'http://'.$authorizedRedirect, 'https://'.$authorizedRedirect).'
-					<br />'.$this->l('Then validate by clicking the "Create client ID" button'),
-                'Google API - 07 - API Access created.png' => $this->l('You should now have the following screen. Copy/Paste the "Client ID" and "Client secret" into the form below'),
+					<br />'.$this->l('Then validate by clicking the "Create" button'),
+                'Google API - 07 - API Access created.png' => $this->l('You should now see the following screen. Copy/Paste the "Client ID" and "Client secret" into the form below'),
                 'Google API - 08 - Profile ID.png'         => $this->l('Now you need the ID of the Analytics Profile you want to connect. In order to find your Profile ID, connect to the Analytics dashboard, then look at the URL in the address bar. Your Profile ID is the number following a "p", as shown underlined in red on the screenshot'),
             ];
-            $firstSlide = key($slides);
 
-            $html .= '
-			<a id="screenshots_button" href="#screenshots"><button class="btn btn-default"><i class="icon-question-sign"></i> How to configure Google Analytics API</button></a>
-			<div style="display:none">
-				<div id="screenshots" class="carousel slide">
-					<ol class="carousel-indicators">';
-            $i = 0;
-            foreach ($slides as $slide => $caption) {
-                $html .= '<li data-target="#screenshots" data-slide-to="'.($i++).'" '.($slide == $firstSlide ? 'class="active"' : '').'></li>';
-            }
-            $html .= '
-					</ol>
-					<div class="carousel-inner">';
-            foreach ($slides as $slide => $caption) {
-                $html .= '
-						<div class="item '.($slide == $firstSlide ? 'active' : '').'">
-							<img src="'.$this->_path.'screenshots/3.0/'.$slide.'" style="margin:auto">
-							<div style="text-align:center;font-size:1.4em;margin-top:10px;font-weight:700">
-								'.$caption.'
-							</div>
-							<div class="clear">&nbsp;</div>
-						</div>';
-            }
-            $html .= '
-					</div>
-					<a class="left carousel-control" href="#screenshots" data-slide="prev">
-						<span class="icon-prev"></span>
-					</a>
-					<a class="right carousel-control" href="#screenshots" data-slide="next">
-						<span class="icon-next"></span>
-					</a>
-				</div>
-			</div>
-			<div class="clear">&nbsp;</div>
-			<script type="text/javascript">
-				$(document).ready(function(){
-					$("a#screenshots_button").fancybox();
-					$("#screenshots").carousel({interval:false});
-					$("ol.carousel-indicators").remove();
-				});
-			</script>';
+            $this->context->smarty->assign([
+                'slides'     => $slides,
+                'modulePath' => $this->_path,
+            ]);
+
+            $html .= $this->display(__FILE__, 'views/templates/admin/slider.tpl');
         }
 
         $helper = new HelperOptions($this);
@@ -276,15 +210,15 @@ class Gapi extends Module
             'general' => [
                 'title'  => $this->l('Google Analytics API v3.0'),
                 'fields' => $fields = [
-                    'PS_GAPI30_CLIENT_ID'     => [
+                    static::GAPI30_CLIENT_ID     => [
                         'title' => $this->l('Client ID'),
                         'type'  => 'text',
                     ],
-                    'PS_GAPI30_CLIENT_SECRET' => [
+                    static::GAPI30_CLIENT_SECRET => [
                         'title' => $this->l('Client Secret'),
                         'type'  => 'text',
                     ],
-                    'PS_GAPI_PROFILE'         => [
+                    static::GAPI_PROFILE         => [
                         'title' => $this->l('Profile'),
                         'type'  => 'text',
                     ],
@@ -301,16 +235,16 @@ class Gapi extends Module
     /**
      * API Authenticate
      */
-    public function api_3_0_authenticate()
+    public function apiAuthenticate()
     {
         $shop = new Shop(Shop::getContextShopID());
         // https://developers.google.com/accounts/docs/OAuth2WebServer
         $params = [
             'response_type'   => 'code',
-            'client_id'       => Configuration::get('PS_GAPI30_CLIENT_ID_TMP'),
+            'client_id'       => Configuration::get(static::GAPI30_CLIENT_ID_TMP),
             'scope'           => 'https://www.googleapis.com/auth/analytics.readonly',
             'redirect_uri'    => $shop->getBaseURL(true).'modules/'.$this->name.'/oauth2callback.php',
-            'state'           => $this->context->employee->id.'-'.Tools::encrypt($this->context->employee->id.Configuration::get('PS_GAPI30_CLIENT_ID_TMP')),
+            'state'           => $this->context->employee->id.'-'.Tools::encrypt($this->context->employee->id.Configuration::get(static::GAPI30_CLIENT_ID_TMP)),
             'approval_prompt' => 'force',
             'access_type'     => 'offline',
         ];
@@ -322,21 +256,21 @@ class Gapi extends Module
      *
      * @return bool
      */
-    public function api_3_0_refreshtoken()
+    public function apiRefreshToken()
     {
         $params = [
-            'client_id'     => Configuration::get('PS_GAPI30_CLIENT_ID'),
-            'client_secret' => Configuration::get('PS_GAPI30_CLIENT_SECRET'),
+            'client_id'     => Configuration::get(static::GAPI30_CLIENT_ID),
+            'client_secret' => Configuration::get(static::GAPI30_CLIENT_SECRET),
         ];
 
         // https://developers.google.com/accounts/docs/OAuth2WebServer#offline
-        if (Configuration::get('PS_GAPI30_REFRESH_TOKEN')) {
+        if (Configuration::get(static::GAPI30_REFRESH_TOKEN)) {
             $params['grant_type'] = 'refresh_token';
-            $params['refresh_token'] = Configuration::get('PS_GAPI30_REFRESH_TOKEN');
+            $params['refresh_token'] = Configuration::get(static::GAPI30_REFRESH_TOKEN);
         } else {
             $shop = new Shop(Shop::getContextShopID());
             $params['grant_type'] = 'authorization_code';
-            $params['code'] = Configuration::get('PS_GAPI30_AUTHORIZATION_CODE');
+            $params['code'] = Configuration::get(static::GAPI30_AUTHORIZATION_CODE);
             $params['redirect_uri'] = $shop->getBaseURL(true).'modules/'.$this->name.'/oauth2callback.php';
         }
 
@@ -348,7 +282,7 @@ class Gapi extends Module
         try {
             $responseJson = (string) $guzzle->post('https://accounts.google.com/o/oauth2/token', [
                 'form_params' => $params,
-            ]);
+            ])->getBody();
         } catch (Exception $e) {
             $responseJson = false;
         }
@@ -362,276 +296,13 @@ class Gapi extends Module
             return false;
         }
 
-        Configuration::updateValue('PS_GAPI30_ACCESS_TOKEN', $response['access_token']);
-        Configuration::updateValue('PS_GAPI30_TOKEN_EXPIRATION', time() + (int) $response['expires_in']);
+        Configuration::updateValue(static::GAPI30_ACCESS_TOKEN, $response['access_token']);
+        Configuration::updateValue(static::GAPI30_TOKEN_EXPIRATION, time() + (int) $response['expires_in']);
         if (isset($response['refresh_token'])) {
-            Configuration::updateValue('PS_GAPI30_REFRESH_TOKEN', $response['refresh_token']);
+            Configuration::updateValue(static::GAPI30_REFRESH_TOKEN, $response['refresh_token']);
         }
 
         return true;
-    }
-
-    /**
-     * @param mixed $dimensions
-     * @param mixed $metrics
-     * @param mixed $dateFrom
-     * @param mixed $dateTo
-     * @param mixed $sort
-     * @param mixed $filters
-     * @param mixed $start
-     * @param mixed $limit
-     *
-     * @return array|bool
-     */
-    protected function api_3_0_requestReportData($dimensions, $metrics, $dateFrom, $dateTo, $sort, $filters, $start, $limit)
-    {
-        if (Configuration::get('PS_GAPI30_TOKEN_EXPIRATION') < time() + 30 && !$this->api_3_0_refreshtoken()) {
-            return false;
-        }
-        $bearer = Configuration::get('PS_GAPI30_ACCESS_TOKEN');
-
-        $params = [
-            'ids'          => 'ga:'.Configuration::get('PS_GAPI_PROFILE'),
-            'dimensions'   => $dimensions,
-            'metrics'      => $metrics,
-            'sort'         => $sort ? $sort : $metrics,
-            'start-date'   => $dateFrom,
-            'end-date'     => $dateTo,
-            'start-index'  => $start,
-            'max-results'  => $limit,
-            'access_token' => $bearer,
-        ];
-        if ($filters !== null) {
-            $params['filters'] = $filters;
-        }
-        $content = str_replace('&amp;', '&', urldecode(http_build_query($params)));
-
-        $api = ($dateFrom && $dateTo) ? 'ga' : 'realtime';
-
-        $guzzle = new Client([
-            'timeout' => static::CONNECTION_TIMEOUT,
-            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
-        ]);
-
-        try {
-            $responseJson = (string) $guzzle->post('https://www.googleapis.com/analytics/v3/data/'.$api.'?'.$content, [
-                'form_params' => $params,
-            ]);
-        } catch (Exception $e) {
-            $responseJson = false;
-        }
-
-        if (!$responseJson) {
-            return false;
-        }
-
-        // https://developers.google.com/analytics/devguides/reporting/core/v3/reference
-        $response = json_decode($responseJson, true);
-
-        $result = [];
-        if (isset($response['rows']) && is_array($response['rows'])) {
-            foreach ($response['rows'] as $row) {
-                $metrics = [];
-                $dimensions = [];
-                foreach ($row as $key => $value) {
-                    if ($response['columnHeaders'][$key]['columnType'] == 'DIMENSION') {
-                        $dimensions[str_replace('ga:', '', $response['columnHeaders'][$key]['name'])] = $value;
-                    } elseif ($response['columnHeaders'][$key]['columnType'] == 'METRIC') {
-                        $metrics[str_replace('ga:', '', $response['columnHeaders'][$key]['name'])] = $value;
-                    }
-                }
-                $result[] = ['metrics' => $metrics, 'dimensions' => $dimensions];
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return string
-     */
-    public function api_1_3_getContent()
-    {
-        $html = '';
-        if (Tools::isSubmit('PS_GAPI13_EMAIL')) {
-            if ($this->api_1_3_authenticate(Tools::getValue('PS_GAPI13_EMAIL'), Tools::getValue('PS_GAPI13_PASSWORD'))) {
-                Configuration::updateValue('PS_GAPI13_EMAIL', Tools::getValue('PS_GAPI13_EMAIL'));
-                Configuration::updateValue('PS_GAPI13_PASSWORD', Tools::getValue('PS_GAPI13_PASSWORD'));
-                Configuration::updateValue('PS_GAPI_PROFILE', Tools::getValue('PS_GAPI_PROFILE'));
-            } else {
-                $html .= $this->displayError($this->l('Authentication failed'));
-            }
-        }
-
-        if ($this->api_1_3_isConfigured()) {
-            $resultTest = $this->api_1_3_requestReportData('', 'ga:visits,ga:uniquePageviews', date('Y-m-d', strtotime('-1 day')), date('Y-m-d', strtotime('-1 day')), null, null, 1, 1);
-            if (!$resultTest) {
-                $html .= $this->displayError('Cannot retrieve test results');
-            } else {
-                $html .= $this->displayConfirmation(sprintf($this->l('Yesterday, your store received the visit of %d people for a total of %d unique page views.'), $resultTest[0]['metrics']['visits'], $resultTest[0]['metrics']['uniquePageviews']));
-            }
-        }
-
-        $helper = new HelperOptions($this);
-        $helper->id = $this->id;
-        $helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
-        $helper->token = Tools::getAdminTokenLite('AdminModules');
-        $helper->module = $this;
-
-        $fieldsOptions = [
-            'general' => [
-                'title'  => $this->l('Google Analytics API v1.3'),
-                'fields' => $fields = [
-                    'PS_GAPI13_EMAIL'    => [
-                        'title' => $this->l('Email'),
-                        'type'  => 'text',
-                    ],
-                    'PS_GAPI13_PASSWORD' => [
-                        'title' => $this->l('Password'),
-                        'type'  => 'password',
-                    ],
-                    'PS_GAPI_PROFILE'    => [
-                        'title' => $this->l('Profile'),
-                        'type'  => 'text',
-                        'desc'  => $this->l('You can find your profile ID in the address bar of your browser while accessing Analytics report.').'<br />'.
-                            $this->l('For the OLD VERSION of Google Analytics, the profile ID is in the URL\'s "id" parameter (see "&id=xxxxxxxx"):').'<br />'.
-                            'https://www.google.com/analytics/reporting/?reset=1&id=XXXXXXXX&pdr=20110702-20110801'.'<br />'.
-                            $this->l('For the NEW VERSION of Google Analytics, the profile ID is the number at the end of the URL, starting with p:').'<br />'.
-                            'https://www.google.com/analytics/web/#home/a11345062w43527078pXXXXXXXX/',
-                    ],
-                ],
-                'submit' => ['title' => $this->l('Save and Authenticate')],
-            ],
-        ];
-
-        $helper->tpl_vars = ['currentIndex' => $helper->currentIndex];
-
-        return $html.$helper->generateOptions($fieldsOptions);
-    }
-
-    /**
-     * @param string $email
-     * @param string $password
-     *
-     * @return bool
-     */
-    protected function api_1_3_authenticate($email, $password)
-    {
-        // @codingStandardsIgnoreEnd
-        $streamContext = stream_context_create(
-            [
-                'http' => [
-                    'method'  => 'POST',
-                    'content' => 'accountType=GOOGLE&Email='.urlencode($email).'&Passwd='.urlencode($password).'&source=GAPI-1.3&service=analytics',
-                    'header'  => 'Content-type: application/x-www-form-urlencoded'."\r\n",
-                    'timeout' => 5,
-                ],
-            ]
-        );
-
-        $guzzle = new Client([
-            'timeout' => static::CONNECTION_TIMEOUT,
-            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
-        ]);
-
-        try {
-            $response = (string) $guzzle->post('https://www.google.com/accounts/ClientLogin', [
-                'body' => 'accountType=GOOGLE&Email='.urlencode($email).'&Passwd='.urlencode($password).'&source=GAPI-1.3&service=analytics',
-            ]);
-        } catch (Exception $e) {
-            $response = false;
-        }
-
-        if (!$response) {
-            return false;
-        }
-
-        parse_str(str_replace(["\n", "\r\n"], '&', $response), $responseArray);
-        if (!is_array($responseArray) || !isset($responseArray['Auth']) || empty($responseArray['Auth'])) {
-            return false;
-        }
-
-        $this->auth_token = $responseArray['Auth'];
-
-        return true;
-    }
-
-    /**
-     * @param mixed $dimensions
-     * @param mixed $metrics
-     * @param mixed $dateFrom
-     * @param mixed $dateTo
-     * @param mixed $sort
-     * @param mixed $filters
-     * @param mixed $start
-     * @param mixed $limit
-     *
-     * @return array|bool
-     */
-    protected function api_1_3_requestReportData($dimensions, $metrics, $dateFrom, $dateTo, $sort, $filters, $start, $limit)
-    {
-        if (!$this->api_1_3_authenticate(Configuration::get('PS_GAPI13_EMAIL'), Configuration::get('PS_GAPI13_PASSWORD'))) {
-            return false;
-        }
-
-        $params = [
-            'ids'         => 'ga:'.Configuration::get('PS_GAPI_PROFILE'),
-            'dimensions'  => $dimensions,
-            'metrics'     => $metrics,
-            'sort'        => $sort ? $sort : $metrics,
-            'start-date'  => $dateFrom,
-            'end-date'    => $dateTo,
-            'start-index' => $start,
-            'max-results' => $limit,
-        ];
-        if ($filters !== null) {
-            $params['filters'] = $filters;
-        }
-        $content = str_replace('&amp;', '&', urldecode(http_build_query($params)));
-
-        $guzzle = new Client([
-            'timeout' => static::CONNECTION_TIMEOUT,
-            'verify'  => _PS_TOOL_DIR_.'cacert.pem',
-        ]);
-
-        try {
-            $response = (string) $guzzle->get('https://www.google.com/analytics/feeds/data?'.$content, [
-                'headers' => [
-                    'Authorization' => 'GoogleLogin auth='.$this->auth_token,
-                ],
-            ]);
-        } catch (Exception $e) {
-            $response = false;
-        }
-
-        if (!$response) {
-            return false;
-        }
-
-        $xml = simplexml_load_string($response);
-
-        $result = [];
-        foreach ($xml->entry as $entry) {
-            $metrics = [];
-            foreach ($entry->children('http://schemas.google.com/analytics/2009')->metric as $metric) {
-                $key = str_replace('ga:', '', $metric->attributes()->name);
-                $metricValue = strval($metric->attributes()->value);
-                if (preg_match('/^(\d+\.\d+)|(\d+E\d+)|(\d+.\d+E\d+)$/', $metricValue)) {
-                    $metrics[$key] = (float) $metricValue;
-                } else {
-                    $metrics[$key] = (int) $metricValue;
-                }
-            }
-
-            $dimensions = [];
-            foreach ($entry->children('http://schemas.google.com/analytics/2009')->dimension as $dimension) {
-                $dimensions[str_replace('ga:', '', $dimension->attributes()->name)] = strval($dimension->attributes()->value);
-            }
-
-            $result[] = ['metrics' => $metrics, 'dimensions' => $dimensions];
-        }
-
-        return $result;
     }
 
     /**
@@ -648,19 +319,13 @@ class Gapi extends Module
      */
     public function requestReportData($dimensions, $metrics, $dateFrom = null, $dateTo = null, $sort = null, $filters = null, $start = 1, $limit = 30)
     {
-        if (Configuration::get('PS_GAPI_VERSION') == 30) {
-            return $this->api_3_0_requestReportData($dimensions, $metrics, $dateFrom, $dateTo, $sort, $filters, $start, $limit);
-        } elseif (Configuration::get('PS_GAPI_VERSION') == 13) {
-            return $this->api_1_3_requestReportData($dimensions, $metrics, $dateFrom, $dateTo, $sort, $filters, $start, $limit);
-        }
-
-        return false;
+        return $this->apiRequestReportData($dimensions, $metrics, $dateFrom, $dateTo, $sort, $filters, $start, $limit);
     }
 
     /**
      * OAuth 2 callback
      */
-    public function api_3_0_oauth2callback()
+    public function apiOauthCallback()
     {
         if (!Tools::getValue('state')) {
             die ('token missing');
@@ -692,5 +357,83 @@ class Gapi extends Module
         Configuration::deleteFromContext('PS_GAPI30_REFRESH_TOKEN');
 
         Tools::redirectAdmin($url.'&oauth2callback='.$oauth2callback);
+    }
+
+    /**
+     * @param mixed $dimensions
+     * @param mixed $metrics
+     * @param mixed $dateFrom
+     * @param mixed $dateTo
+     * @param mixed $sort
+     * @param mixed $filters
+     * @param mixed $start
+     * @param mixed $limit
+     *
+     * @return array|bool
+     */
+    protected function apiRequestReportData($dimensions, $metrics, $dateFrom, $dateTo, $sort, $filters, $start, $limit)
+    {
+        if (Configuration::get(static::GAPI30_TOKEN_EXPIRATION) < time() + 30 && !$this->apiRefreshToken()) {
+            return false;
+        }
+        $bearer = Configuration::get(static::GAPI30_ACCESS_TOKEN);
+
+        $params = [
+            'ids'          => 'ga:'.Configuration::get(static::GAPI_PROFILE),
+            'dimensions'   => $dimensions,
+            'metrics'      => $metrics,
+            'sort'         => $sort ? $sort : $metrics,
+            'start-date'   => $dateFrom,
+            'end-date'     => $dateTo,
+            'start-index'  => $start,
+            'max-results'  => $limit,
+            'access_token' => $bearer,
+        ];
+        if ($filters !== null) {
+            $params['filters'] = $filters;
+        }
+        $content = str_replace('&amp;', '&', urldecode(http_build_query($params)));
+
+        $api = ($dateFrom && $dateTo) ? 'ga' : 'realtime';
+
+        $guzzle = new Client(
+            [
+                'timeout' => static::CONNECTION_TIMEOUT,
+                'verify'  => _PS_TOOL_DIR_.'cacert.pem',
+            ]
+        );
+
+        try {
+            $responseJson = (string) $guzzle->post("https://www.googleapis.com/analytics/v3/data/$api?$content", [
+                'form_params' => $params,
+            ])->getBody();
+        } catch (Exception $e) {
+            $responseJson = false;
+        }
+
+        if (!$responseJson) {
+            return false;
+        }
+
+        // https://developers.google.com/analytics/devguides/reporting/core/v3/reference
+        $response = json_decode($responseJson, true);
+
+        $result = [];
+        if (isset($response['rows']) && is_array($response['rows'])) {
+            foreach ($response['rows'] as $row) {
+                $metrics = [];
+                $dimensions = [];
+                foreach ($row as $key => $value) {
+                    if ($response['columnHeaders'][$key]['columnType'] == 'DIMENSION') {
+                        $dimensions[str_replace('ga:', '', $response['columnHeaders'][$key]['name'])] = $value;
+                    } elseif ($response['columnHeaders'][$key]['columnType'] == 'METRIC') {
+                        $metrics[str_replace('ga:', '', $response['columnHeaders'][$key]['name'])] = $value;
+                    }
+                }
+                $result[] = ['metrics' => $metrics, 'dimensions' => $dimensions];
+            }
+        }
+
+        return $result;
     }
 }
