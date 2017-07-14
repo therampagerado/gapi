@@ -61,7 +61,7 @@ class Gapi extends Module
     {
         $this->name = 'gapi';
         $this->tab = 'administration';
-        $this->version = '3.0.0';
+        $this->version = '3.0.1';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -333,18 +333,27 @@ class Gapi extends Module
         }
         $bearer = Configuration::get(static::GAPI30_ACCESS_TOKEN);
 
-        $params = [
-            'access_token' => $bearer,
-            'ids'          => 'ga:'.Configuration::get(static::GAPI_PROFILE),
-            'dimensions'   => $dimensions,
-            'metrics'      => $metrics,
-            'sort'         => $sort ? $sort : $metrics,
-            'start-date'   => $dateFrom,
-            'end-date'     => $dateTo,
-            'start-index'  => $start,
-            'max-results'  => $limit,
-        ];
-        if ($filters !== null) {
+        if (substr($metrics, 0, 3) === 'rt:') {
+            $params = [
+                'access_token' => $bearer,
+                'ids'          => 'ga:'.Configuration::get(static::GAPI_PROFILE),
+                'metrics'      => $metrics,
+            ];
+        } else {
+            $params = [
+                'access_token' => $bearer,
+                'ids'          => 'ga:'.Configuration::get(static::GAPI_PROFILE),
+                'dimensions'   => $dimensions,
+                'metrics'      => $metrics,
+                'sort'         => $sort ? $sort : $metrics,
+                'start-date'   => $dateFrom,
+                'end-date'     => $dateTo,
+                'start-index'  => $start,
+                'max-results'  => $limit,
+            ];
+        }
+
+        if (substr($metrics, 0, 3) !== 'rt:' && $filters !== null) {
             $params['filters'] = $filters;
         }
         $content = str_replace('&amp;', '&', urldecode(http_build_query($params)));
