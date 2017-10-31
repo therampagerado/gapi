@@ -168,42 +168,38 @@ class Gapi extends Module
             }
         }
 
-        $displaySlider = true;
         if ($this->isApiConfigured()) {
             $resultTest = $this->apiRequestReportData('', 'ga:visits,ga:uniquePageviews', '30daysAgo', 'yesterday', null, null, 1, 1);
             if (!$resultTest) {
                 $html .= $this->displayError('Cannot retrieve test results or there is no data in your account, yet');
             } else {
-                $displaySlider = false;
                 $html .= $this->displayConfirmation(sprintf($this->l('Yesterday, %d people visited your store for a total of %d unique page views.'), $resultTest[0]['metrics']['visits'], $resultTest[0]['metrics']['uniquePageviews']));
             }
         }
 
-        if ($displaySlider) {
-            $shop = new Shop(Shop::getContextShopID());
-            $authorizedOrigin = $shop->domain;
-            $authorizedRedirect = $shop->domain.$shop->getBaseURI().'modules/'.$this->name.'/oauth2callback.php';
-            $slides = [
-                'Google API - 01 - Start.png'              => $this->l('Go to').' <a href="https://console.developers.google.com/cloud-resource-manager" target="_blank">https://console.developers.google.com/cloud-resource-manager</a> '.$this->l('and click the "Create Project" button'),
-                'Google API - 02 - Services.png'           => $this->l('On the "API Manager > Library" tab, switch on the Analytics API'),
-                'Google API - 04 - Services OK.png'        => $this->l('You should now have something like this'),
-                'Google API - 05 - API Access.png'         => $this->l('On the "API Manager > Credentials" tab, click the "Create credentials" button. A dropdown will appear. Select "OAuth client ID"'),
-                'Google API - 06 - Create Client ID.png'   =>
-                    sprintf($this->l('Keep "Web application" selected and fill in the "Authorized Javascript Origins" area with "%s" and "%s" then the "Authorized Redirect URI" area with "%s" and "%s".'), 'http://'.$authorizedOrigin, 'https://'.$authorizedOrigin, 'http://'.$authorizedRedirect, 'https://'.$authorizedRedirect).'
-					<br />'.$this->l('Then validate by clicking the "Create" button'),
-                'Google API - 07 - API Access created.png' => $this->l('You should now see the following screen. Copy/Paste the "Client ID" and "Client secret" into the form below'),
-                'Google API - 08 - Profile ID.png'         => $this->l('Now you need the ID of the Analytics Profile you want to connect. In order to find your Profile ID, connect to the Analytics dashboard, then look at the URL in the address bar. Your Profile ID is the number following a "p", as shown underlined in red on the screenshot'),
-            ];
+        $shop = new Shop(Shop::getContextShopID());
+        $authorizedOrigin = $shop->domain;
+        $authorizedRedirect = $shop->domain.$shop->getBaseURI().'modules/'.$this->name.'/oauth2callback.php';
+        $slides = [
+            'Google API - 01 - Start.png'              => $this->l('Go to').' <a href="https://console.developers.google.com/cloud-resource-manager" target="_blank">https://console.developers.google.com/cloud-resource-manager</a> '.$this->l('and click the "Create Project" button'),
+            'Google API - 02 - Services.png'           => $this->l('On the "API Manager > Library" tab, switch on the Analytics API'),
+            'Google API - 04 - Services OK.png'        => $this->l('You should now have something like this'),
+            'Google API - 05 - API Access.png'         => $this->l('On the "API Manager > Credentials" tab, click the "Create credentials" button. A dropdown will appear. Select "OAuth client ID"'),
+            'Google API - 06 - Create Client ID.png'   =>
+                sprintf($this->l('Keep "Web application" selected and fill in the "Authorized Javascript Origins" area with "%s" and "%s" then the "Authorized Redirect URI" area with "%s" and "%s".'), 'http://'.$authorizedOrigin, 'https://'.$authorizedOrigin, 'http://'.$authorizedRedirect, 'https://'.$authorizedRedirect).'
+                <br />'.$this->l('Then validate by clicking the "Create" button'),
+            'Google API - 07 - API Access created.png' => $this->l('You should now see the following screen. Copy/Paste the "Client ID" and "Client secret" into the form below'),
+            'Google API - 08 - Profile ID.png'         => $this->l('Now you need the ID of the Analytics Profile you want to connect. In order to find your Profile ID, connect to the Analytics dashboard, then look at the URL in the address bar. Your Profile ID is the number following a "p", as shown underlined in red on the screenshot'),
+        ];
 
-            $this->context->smarty->assign(
-                [
-                    'slides'     => $slides,
-                    'modulePath' => $this->_path,
-                ]
-            );
+        $this->context->smarty->assign(
+            [
+                'slides'     => $slides,
+                'modulePath' => $this->_path,
+            ]
+        );
 
-            $html .= $this->display(__FILE__, 'views/templates/admin/slider.tpl');
-        }
+        $html .= $this->display(__FILE__, 'views/templates/admin/slider.tpl');
 
         $helper = new HelperOptions($this);
         $helper->id = $this->id;
