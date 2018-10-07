@@ -3,11 +3,12 @@ compatible_versions: 1.0.0+
 author: thirty bees
 category: statistics
 tags:
-  - google
-  - analytics
-  - google analytics
+- google
+- analytics
+- google analytics
+- gapi
 description_short: The Google Analytics API module shows Google Analytics information in your back office.
 description: description.md
 images:
-  - image-1.png
+- image-1.png
 license: AFL
