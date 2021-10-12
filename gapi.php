@@ -61,7 +61,7 @@ class Gapi extends Module
     {
         $this->name = 'gapi';
         $this->tab = 'administration';
-        $this->version = '3.0.1';
+        $this->version = '3.0.2';
         $this->author = 'thirty bees';
         $this->need_instance = 0;
         $this->bootstrap = true;
